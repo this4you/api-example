@@ -18,6 +18,7 @@ docker compose up -d                              # опціонально: Kafk
 - http://localhost:8080/chat.html — WebSocket чат (Слайд 5)
 - http://localhost:8080/ws-services/books.wsdl — SOAP WSDL (Слайд 4)
 - gRPC: `localhost:9090` (Слайд 4)
+- http://localhost:8090 — Kafka UI (після `docker compose up -d`, Слайд 11)
 
 ---
 
@@ -227,14 +228,17 @@ docker compose up -d                              # опціонально: Kafk
 - Async response: `async/AsyncController.kt`.
 
 **Як показати**:
-1. `docker compose up -d` — підняти Kafka.
-2. `04-orders-errors.http` → POST /orders. У логах побачити:
+1. `docker compose up -d` — підняти Kafka + Kafka UI.
+2. Відкрити http://localhost:8090 → побачити кластер `local`, поки топіків немає.
+3. `04-orders-errors.http` → POST /orders. У логах побачити:
    - `OrderService` логує створення,
    - `KafkaProducer` публікує, `KafkaConsumer` приймає,
    - `WebhookSenderService` викликає `/webhooks/received`,
    - `WebhookReceiverController` логує отримання.
-3. `GET /api/public/async/report` — імітує повільний звіт через `CompletableFuture`.
-4. Згадати, що RabbitMQ — це альтернатива Kafka для черг задач (різні моделі:
+4. Оновити Kafka UI → топік `order.created` з'явився, у Messages видно payload,
+   у Consumers — наша група `api-example` з offset-ом.
+5. `GET /api/public/async/report` — імітує повільний звіт через `CompletableFuture`.
+6. Згадати, що RabbitMQ — це альтернатива Kafka для черг задач (різні моделі:
    Kafka — лог подій, Rabbit — черга з ack/reject).
 
 ---
