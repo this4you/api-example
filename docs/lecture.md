@@ -39,6 +39,29 @@ CRM інтегрується з Telegram або email-сервісом,
 та як розробники тестують API на практиці.
 Тема дуже практична, тому по ходу лекції будемо розбирати реальні приклади із сучасних продуктів.”
 
+---
+### Демо в коді
+
+**Перед першим запуском:**
+```bash
+./gradlew bootRun
+# опціонально для Слайду 11 — message broker:
+docker compose up -d
+```
+Головна сторінка з посиланнями на всі демо: http://localhost:8080
+
+**Файли (як ми викликаємо чужий public API):**
+- `src/main/kotlin/this4you/apiexample/integration/ExternalApiClient.kt`
+
+**Команда:**
+```bash
+curl http://localhost:8080/integration/external-posts
+```
+Наш бекенд викликає `jsonplaceholder.typicode.com` через `RestClient` — це
+аналог "сайт інтегрується з Google Maps API".
+
+---
+
 Слайд 2 — Компоненти API
 Скрипт викладача:
 “Тепер давайте розберемося, з чого взагалі складається API.
@@ -110,6 +133,33 @@ test environment.
 Наприклад, платіжні системи мають тестові API, де можна “оплачувати” товари тестовими картками.
 У реальних проєктах розуміння всіх цих компонентів дуже важливе, тому що API — це основа взаємодії сучасних систем.”
 
+---
+### Демо в коді
+
+**Endpoints, контракт, JSON, схема:**
+- `src/main/kotlin/this4you/apiexample/books/v1/BookControllerV1.kt` — endpoints `/api/v1/books`
+- `src/main/kotlin/this4you/apiexample/books/v1/BookDtoV1.kt` — контракт + валідація (`@NotBlank`, `@Pattern`, `@Min`)
+- `src/main/kotlin/this4you/apiexample/config/OpenApiConfig.kt` — формальний опис API
+
+**Документація:**
+- Swagger UI: http://localhost:8080/swagger-ui.html — клікнути на схему `BookRequestV1` → видно `pattern: \d{13}` для ISBN.
+
+**Перевірка валідації (схеми):**
+```bash
+# спочатку логін (Слайд 7) щоб отримати токен:
+TOKEN=$(curl -s -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq -r .token)
+
+# навмисно невалідні дані → 400 з полями помилок:
+curl -X POST http://localhost:8080/api/v1/books \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"","author":"","isbn":"bad","priceUah":-1}'
+```
+
+---
+
 Слайд 3 — Типи API за доступом
 Скрипт викладача:
 “API можуть відрізнятися не тільки за технологією, а й за тим, хто має до них доступ.
@@ -168,6 +218,30 @@ rate limiting,
 перевантаження сервера,
 або проблеми з безпекою.
 Тому рівень доступу до API — це дуже важлива частина архітектури сучасних систем.”
+
+---
+### Демо в коді
+
+**Файли:**
+- `src/main/kotlin/this4you/apiexample/config/SecurityConfig.kt` — три рівні доступу в одному місці:
+  - `/api/public/**`, `/integration/**` → `permitAll` (Public),
+  - `/api/partner/**` → `ROLE_PARTNER` через `X-API-Key` (Partner),
+  - `/api/v1/**`, `/api/v2/**`, `/orders/**` → JWT (Internal).
+- `src/main/kotlin/this4you/apiexample/auth/ApiKeyAuthFilter.kt` — як реалізовано API key для партнерів.
+
+**Команди:**
+```bash
+# Public — без жодних заголовків працює:
+curl http://localhost:8080/integration/external-posts
+
+# Internal — без токена → 401:
+curl -i http://localhost:8080/api/v1/books
+
+# Partner key (X-API-Key з application.yml):
+curl -i http://localhost:8080/api/v1/books -H "X-API-Key: demo-api-key-12345"
+```
+
+---
 
 Слайд 4 — Архітектури API
 Скрипт викладача:
@@ -259,6 +333,42 @@ GraphQL — гнучке отримання даних,
 gRPC — швидкість і ефективність для мікросервісів.
 У реальних компаніях часто використовуються одразу кілька підходів залежно від задач.”
 
+---
+### Демо в коді
+
+Одна і та сама операція (отримати книги) у 4 різних архітектурах:
+
+**REST** (Spring MVC):
+- Файл: `src/main/kotlin/this4you/apiexample/books/v1/BookControllerV1.kt`
+- Команда:
+  ```bash
+  curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/books
+  ```
+
+**GraphQL** (Spring for GraphQL):
+- Файли: `src/main/kotlin/this4you/apiexample/graphql/BookGraphQLController.kt`, `src/main/resources/graphql/schema.graphqls`
+- Команда: відкрити http://localhost:8080/graphiql і ввести `{ books { title } }` — клієнт сам обирає, які поля прийдуть.
+
+**SOAP** (Spring Web Services, contract-first):
+- Файли: `src/main/resources/xsd/books.xsd`, `src/main/kotlin/this4you/apiexample/soap/BookSoapEndpoint.kt`, `src/main/kotlin/this4you/apiexample/config/SoapConfig.kt`
+- WSDL: http://localhost:8080/ws-services/books.wsdl
+- Команда:
+  ```bash
+  curl -X POST http://localhost:8080/ws-services \
+    -H 'Content-Type: text/xml' \
+    --data '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:b="http://this4you/apiexample/soap/books"><soap:Body><b:GetBookRequest><b:id>1</b:id></b:GetBookRequest></soap:Body></soap:Envelope>'
+  ```
+
+**gRPC** (Protocol Buffers, HTTP/2):
+- Файли: `src/main/proto/book.proto`, `src/main/kotlin/this4you/apiexample/grpc/BookGrpcService.kt`
+- Команда (потрібен `brew install grpcurl`):
+  ```bash
+  grpcurl -plaintext -d '{}'         localhost:9090 book.BookGrpcApi/List
+  grpcurl -plaintext -d '{"id":1}'    localhost:9090 book.BookGrpcApi/Get
+  ```
+
+---
+
 Слайд 5 — Протоколи та формати даних
 Скрипт викладача:
 “Щоб API могли працювати, системи повинні домовитися про дві речі:
@@ -349,6 +459,28 @@ application/protobuf
 Java-об’єкт або Kotlin data class перетворюється у JSON.
 А коли сервер отримує JSON назад і перетворює його у внутрішній об’єкт — це називається десеріалізація.
 Це одна з базових речей, які постійно відбуваються “під капотом” будь-якого API.”
+
+---
+### Демо в коді
+
+**HTTP + JSON (стандарт REST):**
+- Будь-який контролер у `books/`, `orders/` — Spring MVC автоматично серіалізує об'єкти в JSON.
+
+**WebSocket (постійне з'єднання, Слайд 11 — теж):**
+- Файли: `src/main/kotlin/this4you/apiexample/chat/ChatWebSocketHandler.kt`, `src/main/kotlin/this4you/apiexample/config/WebSocketConfig.kt`, `src/main/resources/static/chat.html`
+- Команда: відкрити http://localhost:8080/chat.html у **двох вкладках** — повідомлення з однієї одразу з'являються в іншій.
+
+**XML + серіалізація (JAXB):**
+- Файли: `src/main/kotlin/this4you/apiexample/soap/SoapDto.kt` — `@XmlRootElement`/`@XmlElement` керують серіалізацією Kotlin ↔ XML.
+
+**Protobuf (бінарний формат):**
+- Файл: `src/main/proto/book.proto` — після `./gradlew build` згенеровані Java/Kotlin класи з'являються в `build/generated/source/proto/`.
+
+**Content-Type:**
+- Spring сам обирає (де)серіалізатор по заголовку. SOAP endpoint вимагає `text/xml`, REST — `application/json`.
+
+---
+
 Слайд 6 — RESTful принципи
 Скрипт викладача:
 “Ми вже згадували REST як найпопулярнішу архітектуру API.
@@ -431,6 +563,38 @@ REST дозволяє кешувати відповіді сервера.
 документувати,
 і використовувати іншим командам.
 Саме тому REST став стандартом у сучасній веб-розробці.”
+
+---
+### Демо в коді
+
+**Файл, де живуть усі принципи одразу:**
+- `src/main/kotlin/this4you/apiexample/books/v1/BookControllerV1.kt`:
+  - URL описує ресурс (`/api/v1/books/{id}`), не дію.
+  - GET / POST / PUT / DELETE = семантика дії.
+  - `CacheControl.maxAge(30s)` → заголовок `Cache-Control`.
+  - 201 Created + `Location` header при створенні, 204 No Content при DELETE.
+
+**Stateless:**
+- `src/main/kotlin/this4you/apiexample/config/SecurityConfig.kt` — `SessionCreationPolicy.STATELESS` (жодних сесій).
+
+**Команди:**
+```bash
+TOKEN=...  # див. Слайд 7
+
+# GET → 200 + Cache-Control + Deprecation
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/books
+
+# POST → 201 + Location header
+curl -i -X POST http://localhost:8080/api/v1/books \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"DDD","author":"Eric Evans","isbn":"9780321125217","priceUah":1500}'
+
+# DELETE → 204
+curl -i -X DELETE -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/books/3
+```
+
+---
 
 Слайд 7 — Аутентифікація й авторизація
 Скрипт викладача:
@@ -528,6 +692,47 @@ WAF,
 rotation токенів.
 Тому безпека API — це не одна технологія, а цілий набір механізмів захисту.”
 
+---
+### Демо в коді
+
+**JWT:**
+- `src/main/kotlin/this4you/apiexample/auth/JwtService.kt` — генерація і парсинг.
+- `src/main/kotlin/this4you/apiexample/auth/JwtAuthFilter.kt` — фільтр, що читає `Authorization: Bearer ...`.
+- `src/main/kotlin/this4you/apiexample/auth/AuthController.kt` — `/auth/login`.
+
+**API Key:**
+- `src/main/kotlin/this4you/apiexample/auth/ApiKeyAuthFilter.kt` — фільтр для `X-API-Key`.
+
+**Basic Auth + конфігурація chain:**
+- `src/main/kotlin/this4you/apiexample/config/SecurityConfig.kt` — `httpBasic { }` увімкнено.
+
+**Rate limiting (захист API):**
+- `src/main/kotlin/this4you/apiexample/common/RateLimitFilter.kt` — Bucket4j, ліміт у `application.yml`.
+
+**Команди:**
+```bash
+# Логін → JWT
+TOKEN=$(curl -s -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin"}' | jq -r .token)
+echo $TOKEN
+
+# Запит без токена → 401:
+curl -i http://localhost:8080/api/v1/books
+
+# З токеном → 200:
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/books
+
+# Невалідний логін → 401:
+curl -i -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"wrong"}'
+```
+
+**Інтерактивне демо:** http://localhost:8080/api-demo.html
+
+---
+
 Слайд 8 — Версіонування API
 Скрипт викладача:
 “Тепер поговоримо про дуже важливу проблему в API — зміни.
@@ -604,6 +809,36 @@ API v1 підтримується до кінця року,
 і поступово переводять клієнтів на нову версію.
 Це дуже важливо для стабільності продукту.
 У реальному світі підтримка старих API — це окрема велика задача для команд backend-розробки.”
+
+---
+### Демо в коді
+
+**Дві версії API поруч:**
+- `src/main/kotlin/this4you/apiexample/books/v1/` — стара версія (`priceUah`)
+- `src/main/kotlin/this4you/apiexample/books/v2/` — нова (`price.amount` + `currency` + `tags`)
+- Сервісний шар `BookService.kt` — спільний (логіка не дублюється).
+
+**Deprecation headers** у `BookControllerV1.kt`:
+```kotlin
+.header("Deprecation", "true")
+.header("Sunset", LocalDate.of(2026, 12, 31).toString())
+.header("Link", "</api/v2/books>; rel=\"successor-version\"")
+```
+
+**Команди:**
+```bash
+# v1 — побачити Deprecation/Sunset/Link headers:
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/books
+
+# v2 — новий контракт, та сама книга:
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v2/books
+
+# Та сама v1 без Deprecation в URL → видно різницю
+diff <(curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/books/1 | jq) \
+     <(curl -s -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v2/books/1 | jq)
+```
+
+---
 
 Слайд 9 — Документація та специфікації
 Скрипт викладача:
@@ -693,6 +928,31 @@ deprecated старе поле,
 і уникати поломок.
 У великих компаніях хороша документація API — це критично важлива частина продукту.”
 
+---
+### Демо в коді
+
+**OpenAPI / Swagger UI:**
+- Файл: `src/main/kotlin/this4you/apiexample/config/OpenApiConfig.kt` — мета-інформація + security schemes.
+- Анотації `@Operation`, `@Tag`, `@Schema` у контролерах і DTO.
+- URL: http://localhost:8080/swagger-ui.html
+- Сирий JSON: http://localhost:8080/api-docs
+
+**GraphQL schema + GraphiQL:**
+- Файл: `src/main/resources/graphql/schema.graphqls`
+- URL: http://localhost:8080/graphiql — автокомпліт полів зі схеми.
+
+**Інтерактивне демо у Swagger:**
+1. Відкрити http://localhost:8080/swagger-ui.html
+2. Натиснути "Authorize" → вставити JWT → `Bearer <token>`
+3. Розгорнути `Books v1` → `POST /api/v1/books` → "Try it out".
+
+**SDK generation:** з OpenAPI документа можна автоматично згенерувати клієнт під будь-яку мову:
+```bash
+openapi-generator-cli generate -i http://localhost:8080/api-docs -g typescript-fetch -o ./client-ts
+```
+
+---
+
 Слайд 10 — Обробка помилок і статус-коди
 Скрипт викладача:
 “Тепер поговоримо про помилки в API.
@@ -780,6 +1040,39 @@ notification service.
 ‘У мене не пройшла оплата’.
 І команда може знайти весь ланцюжок подій через trace ID.
 У великих системах без цього дебажити проблеми майже неможливо.”
+
+---
+### Демо в коді
+
+**Структуроване тіло помилки:**
+- `src/main/kotlin/this4you/apiexample/common/ErrorResponse.kt` — JSON формат відповіді.
+- `src/main/kotlin/this4you/apiexample/common/GlobalExceptionHandler.kt` — маппінг exception → HTTP статус.
+
+**Trace ID / Correlation ID:**
+- `src/main/kotlin/this4you/apiexample/common/CorrelationIdFilter.kt` — генерує/підхоплює `X-Trace-Id`, кладе в MDC.
+- Pattern логування у `src/main/resources/application.yml` додає `[traceId=...]` до кожного рядка.
+
+**Retry/backoff (опис):**
+- `src/main/kotlin/this4you/apiexample/webhooks/WebhookSenderService.kt` — коментарі про правильний retry pattern.
+
+**Команди:**
+```bash
+# 404 з структурованим JSON + traceId:
+curl -i -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/books/9999
+
+# 400 — валідація:
+curl -i -X POST http://localhost:8080/api/v1/books \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"","author":"","isbn":"bad","priceUah":-1}'
+
+# Передати власний traceId (як це робить API Gateway):
+curl -i -H "X-Trace-Id: my-trace-123" -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8080/api/v1/books/9999
+# → в логах сервера побачиш [traceId=my-trace-123]
+```
+
+---
 
 Слайд 11 — Асинхронні інтеграції
 Скрипт викладача:
@@ -877,6 +1170,41 @@ cloud-системах,
 можуть виникати дублікати повідомлень.
 Тому event-driven архітектура дає велику гнучкість, але вимагає більш складної інженерії.”
 
+---
+### Демо в коді
+
+**Webhook (приклад відправлення і прийому):**
+- `src/main/kotlin/this4you/apiexample/webhooks/WebhookSenderService.kt` — `@Async` метод відправляє POST на зовнішній URL.
+- `src/main/kotlin/this4you/apiexample/webhooks/WebhookReceiverController.kt` — приймає вхідний callback.
+
+**Kafka (Pub/Sub):**
+- `src/main/kotlin/this4you/apiexample/messaging/KafkaProducer.kt` — публікація події `order.created`.
+- `src/main/kotlin/this4you/apiexample/messaging/KafkaConsumer.kt` — `@KafkaListener` приймає події.
+
+**Async endpoint:**
+- `src/main/kotlin/this4you/apiexample/async/AsyncController.kt` — повертає `CompletableFuture`.
+
+**Перед демо:** `docker compose up -d` (Kafka + Kafka UI).
+
+**Команди:**
+```bash
+# Створити замовлення → запускає Kafka + Webhook
+curl -X POST http://localhost:8080/orders \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"bookId":1,"quantity":2}'
+```
+У логах побачимо ланцюжок: `OrderService` → `KafkaProducer` → `KafkaConsumer` → `WebhookSenderService` → `WebhookReceiverController`.
+
+**Kafka UI:** http://localhost:8090 — побачити топік `order.created`, повідомлення в ньому, consumer group `api-example` з offset-ом.
+
+**Async:**
+```bash
+curl http://localhost:8080/api/public/async/report   # 1 секунда затримки
+```
+
+---
+
 Слайд 12 — API Gateway та проміжне ПЗ
 Скрипт викладача:
 “Уявіть сучасну систему з десятками мікросервісів:
@@ -965,6 +1293,35 @@ Traefik,
 Istio для service mesh архітектур.
 У сучасних distributed systems API Gateway майже став стандартом.”
 
+---
+### Демо в коді
+
+У нашому проекті немає окремого Gateway (це окремий сервіс типу Kong/NGINX), але ми
+демонструємо функції, які зазвичай бере на себе Gateway:
+
+**Routing** — спрощено, реалізовано Spring MVC: різні URI → різні контролери.
+
+**Authentication у одному місці:**
+- `src/main/kotlin/this4you/apiexample/config/SecurityConfig.kt` — централізована перевірка JWT/API Key для всіх endpoints.
+
+**Rate limiting:**
+- `src/main/kotlin/this4you/apiexample/common/RateLimitFilter.kt` — Bucket4j (token bucket).
+- Налаштування: `demo.rate-limit.requests-per-minute` у `application.yml`.
+
+**Correlation ID** (Gateway зазвичай створює і передає у downstream-сервіси):
+- `src/main/kotlin/this4you/apiexample/common/CorrelationIdFilter.kt`.
+
+**Команда — спровокувати 429 Too Many Requests:**
+```bash
+# Поставити невеликий ліміт у application.yml: requests-per-minute: 5
+# Перезапустити додаток, потім:
+for i in {1..10}; do curl -s -o /dev/null -w "%{http_code}\n" \
+  http://localhost:8080/integration/external-posts; done
+# побачите 200, 200, 200, 200, 200, 429, 429, ...
+```
+
+---
+
 Слайд 13 — Кращі практики та чекліст
 Скрипт викладача:
 “На завершення лекції давайте зберемо основні best practices для роботи з API та інтеграціями.
@@ -1052,4 +1409,47 @@ security engineers
 працюють разом.
 Тому що API — це основа взаємодії всієї системи.
 І саме від якості API дуже часто залежить стабільність усього продукту.”
+
+---
+### Демо в коді
+
+**Документація:** Swagger UI http://localhost:8080/swagger-ui.html (контракти, типи, статуси, security schemes).
+
+**Тестування:**
+- `src/test/kotlin/this4you/apiexample/auth/JwtServiceTest.kt` — unit тест.
+- `src/test/kotlin/this4you/apiexample/books/BookControllerV1Test.kt` — інтеграційний (MockMvc, перевіряє 401 + структуру 404).
+- Запуск: `./gradlew test`
+
+**Моніторинг (Actuator):**
+- http://localhost:8080/actuator/health — стан додатку.
+- http://localhost:8080/actuator/metrics — список метрик.
+- http://localhost:8080/actuator/metrics/http.server.requests — статистика по endpoints.
+- http://localhost:8080/actuator/prometheus — формат для Prometheus (далі Grafana).
+
+**Logging + tracing:**
+- Pattern у `src/main/resources/application.yml`: `[traceId=%X{traceId:-}]`.
+- Запит з власним trace id:
+  ```bash
+  curl -H "X-Trace-Id: demo-trace" -H "Authorization: Bearer $TOKEN" \
+    http://localhost:8080/api/v1/books
+  # У логах сервера всі рядки матимуть [traceId=demo-trace]
+  ```
+
+**Versioning:** дві версії `books/v1/` і `books/v2/` живуть одночасно (див. Слайд 8).
+
+**Key management:**
+- `application.yml` зараз містить демо-секрети (`demo.jwt.secret`, `demo.api-key.valid-keys`).
+- У production — зовнішній secret manager (Vault, AWS Secrets Manager) + ротація.
+
+**Чекліст для проекту:**
+- ✔ OpenAPI / Swagger (Слайд 9)
+- ✔ Authentication + Authorization (Слайд 7)
+- ✔ Структуровані помилки + traceId (Слайд 10)
+- ✔ Versioning з Deprecation (Слайд 8)
+- ✔ Rate limiting (Слайд 12)
+- ✔ Async інтеграції (Слайд 11)
+- ✔ Тести (unit + integration)
+- ✔ Health + metrics через Actuator
+
+---
 
