@@ -1,0 +1,30 @@
+### === Слайд 11 — Webhooks ===
+### Цей endpoint викликає наш WebhookSenderService після створення замовлення.
+### Тут ми бачимо, як виглядає вхідний webhook callback.
+
+@baseUrl = http://localhost:8080
+
+### Прийняти webhook (як це робить Stripe/GitHub)
+POST {{baseUrl}}/webhooks/received
+X-Webhook-Signature: example-hmac-signature
+Content-Type: application/json
+
+{
+  "event": "order.created",
+  "orderId": "test-123",
+  "bookId": 1
+}
+
+### === Слайд 11 — Async ===
+GET {{baseUrl}}/api/public/async/report
+
+### === Слайди 1, 3 — інтеграція з зовнішнім API ===
+GET {{baseUrl}}/integration/external-posts
+
+### === Слайди 4, 9 — GraphQL запит ===
+POST {{baseUrl}}/graphql
+Content-Type: application/json
+
+{
+  "query": "{ books { id title author priceUah } }"
+}

@@ -1,0 +1,33 @@
+### === Слайди 10, 11 — Orders + структуровані помилки ===
+
+@baseUrl = http://localhost:8080
+@jwt = PASTE_JWT_HERE
+
+### Створити замовлення → 201 + Kafka/Webhook у логах (Слайд 11)
+POST {{baseUrl}}/orders
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "bookId": 1,
+  "quantity": 2
+}
+
+### Створити для неіснуючої книги → 404 з ErrorResponse (Слайд 10)
+POST {{baseUrl}}/orders
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "bookId": 9999,
+  "quantity": 1
+}
+
+### Перевір traceId у заголовку відповіді X-Trace-Id (Слайд 10)
+GET {{baseUrl}}/orders/some-fake-id
+Authorization: Bearer {{jwt}}
+
+### Передати власний traceId (наприклад, з API Gateway)
+GET {{baseUrl}}/orders/some-fake-id
+Authorization: Bearer {{jwt}}
+X-Trace-Id: my-custom-trace-123

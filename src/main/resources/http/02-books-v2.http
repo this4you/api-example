@@ -1,0 +1,30 @@
+### === Слайд 8 — Books REST API v2 ===
+### Звернути увагу:
+###   - URL: /api/v2/books (versioning через URI),
+###   - DTO змінився: priceUah → price{ amount, currency },
+###   - tags — нове поле.
+
+@baseUrl = http://localhost:8080
+@jwt = PASTE_JWT_HERE
+
+### GET v2 (без Deprecation header, на відміну від v1)
+GET {{baseUrl}}/api/v2/books
+Authorization: Bearer {{jwt}}
+
+### Порівняй з v1 — та сама книга, різний контракт
+GET {{baseUrl}}/api/v1/books/1
+Authorization: Bearer {{jwt}}
+
+### POST v2
+POST {{baseUrl}}/api/v2/books
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "title": "Domain Driven Design",
+  "author": "Eric Evans",
+  "isbn": "9780321125217",
+  "priceAmount": 1500,
+  "priceCurrency": "UAH",
+  "tags": ["architecture", "classic"]
+}

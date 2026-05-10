@@ -1,0 +1,71 @@
+# === Конфігурація демо-проекту до лекції з API ===
+spring:
+  application:
+    name: api-example
+
+  # === Слайди 4, 9 — GraphQL endpoint + GraphiQL UI ===
+  graphql:
+    graphiql:
+      enabled: true       # увімкнути візуальний редактор запитів на /graphiql
+    schema:
+      printer:
+        enabled: true     # дозволити друкувати схему через /graphql/schema
+
+  # === Слайд 11 — Kafka ===
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: api-example
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    # Якщо Kafka не запущена — listeners не падають, а сервіс стартує
+    listener:
+      missing-topics-fatal: false
+
+server:
+  port: 8080
+
+# === Слайд 7 — кастомні налаштування для нашого demo ===
+demo:
+  jwt:
+    secret: "demo-secret-key-not-for-production-please-rotate-in-real-systems-32bytes-min"
+    expiration-minutes: 60
+  api-key:
+    # Звичайно зберігається в secret manager, не в config!
+    # CSV формат — Spring @Value автоматично перетворить на List<String>.
+    valid-keys: "demo-api-key-12345,partner-api-key-67890"
+  rate-limit:
+    # Слайди 7, 12 — обмеження запитів на IP
+    requests-per-minute: 30
+  webhook:
+    # Слайд 11 — куди надсилати webhook після створення замовлення
+    target-url: "http://localhost:8080/webhooks/received"
+
+# === Слайд 13 — actuator endpoints для моніторингу ===
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+# === Слайд 9 — OpenAPI / Swagger UI на /swagger-ui.html ===
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+  api-docs:
+    path: /api-docs
+
+# === Слайд 10 — логування з traceId через MDC ===
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level [traceId=%X{traceId:-}] %logger{36} - %msg%n"
+  level:
+    this4you.apiexample: DEBUG

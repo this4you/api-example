@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>REST + JWT demo — Слайди 6, 7</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; }
+        section { background: #f4f4f4; padding: 16px; border-radius: 6px; margin-bottom: 16px; }
+        button { padding: 8px 16px; cursor: pointer; }
+        pre { background: #fff; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        input { padding: 6px; }
+        .ok { color: green; }
+        .err { color: red; }
+    </style>
+</head>
+<body>
+<h1>REST + JWT demo</h1>
+<p>Слайди 6, 7 — захищені REST endpoints через JWT.</p>
+
+<section>
+    <h2>1. Логін (видача JWT — Слайд 7)</h2>
+    <input id="u" value="admin" placeholder="username">
+    <input id="p" value="admin" type="password" placeholder="password">
+    <button onclick="login()">Login</button>
+    <p>JWT: <code id="token">—</code></p>
+</section>
+
+<section>
+    <h2>2. Захищений запит без токена (Слайд 10 — 401)</h2>
+    <button onclick="callNoAuth()">GET /api/v1/books (без токена)</button>
+    <pre id="noAuthResult"></pre>
+</section>
+
+<section>
+    <h2>3. Захищений запит з JWT (Слайди 6, 7)</h2>
+    <button onclick="callWithAuth()">GET /api/v1/books (з токеном)</button>
+    <pre id="authResult"></pre>
+</section>
+
+<script>
+    let token = null;
+
+    async function login() {
+        const username = document.getElementById("u").value;
+        const password = document.getElementById("p").value;
+        const res = await fetch("/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            token = data.token;
+            document.getElementById("token").textContent = token.slice(0, 30) + "...";
+        } else {
+            document.getElementById("token").textContent = "Login failed (" + res.status + ")";
+        }
+    }
+
+    async function callNoAuth() {
+        // Без заголовка Authorization → 401/403 (Слайд 10)
+        const res = await fetch("/api/v1/books");
+        document.getElementById("noAuthResult").textContent = res.status + " " + res.statusText;
+    }
+
+    async function callWithAuth() {
+        if (!token) { alert("Спочатку залогінься"); return; }
+        const res = await fetch("/api/v1/books", {
+            headers: { "Authorization": "Bearer " + token }
+        });
+        const text = await res.text();
+        document.getElementById("authResult").textContent = res.status + "\n" + text;
+    }
+</script>
+</body>
+</html>

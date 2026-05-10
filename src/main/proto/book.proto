@@ -1,0 +1,34 @@
+// === Слайди 4, 5 — gRPC + Protocol Buffers ===
+// .proto файл — це схема контракту для gRPC.
+// З нього автоматично генеруються Java/Kotlin класи (build/generated/source/proto).
+// Бінарний формат Protobuf компактніший і швидший за JSON.
+syntax = "proto3";
+
+package book;
+
+option java_package = "this4you.apiexample.grpc.proto";
+option java_multiple_files = true;
+
+// === Сервіс із двома методами — list і get ===
+service BookGrpcApi {
+    rpc List(BookListRequest) returns (BookListResponse);
+    rpc Get(BookByIdRequest) returns (BookMessage);
+}
+
+message BookListRequest {}
+
+message BookListResponse {
+    repeated BookMessage books = 1;
+}
+
+message BookByIdRequest {
+    int64 id = 1;
+}
+
+message BookMessage {
+    int64 id = 1;
+    string title = 2;
+    string author = 3;
+    string isbn = 4;
+    int32 price_uah = 5;
+}

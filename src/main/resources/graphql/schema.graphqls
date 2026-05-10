@@ -1,0 +1,33 @@
+# === Слайди 4, 9 — GraphQL schema ===
+# Клієнт сам обирає поля, які потрібні. На відміну від REST,
+# не буває "забагато" або "недостатньо" даних — клієнт вирішує.
+#
+# GraphiQL UI: http://localhost:8080/graphiql
+# Endpoint:    http://localhost:8080/graphql
+
+type Query {
+    # Список усіх книг
+    books: [Book!]!
+    # Одна книга за id (null якщо не знайдено)
+    book(id: ID!): Book
+}
+
+type Mutation {
+    # Створити книгу
+    createBook(input: CreateBookInput!): Book!
+}
+
+type Book {
+    id: ID!
+    title: String!
+    author: String!
+    isbn: String!
+    priceUah: Int!
+}
+
+input CreateBookInput {
+    title: String!
+    author: String!
+    isbn: String!
+    priceUah: Int!
+}

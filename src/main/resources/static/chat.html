@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Чат — Слайд 5</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; }
+        #log { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; background: #f9f9f9; }
+        #msg { width: 80%; padding: 8px; }
+        button { padding: 8px 16px; }
+        .info { color: #777; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+<h1>WebSocket чат — Слайд 5</h1>
+<p class="info">Відкрий цю сторінку у двох вкладках і пиши повідомлення — сервер
+розсилає їх усім підключеним клієнтам через WebSocket. Це постійне двостороннє
+з'єднання, на відміну від HTTP request/response.</p>
+
+<div id="log"></div>
+<br>
+<input id="msg" placeholder="Введіть повідомлення..." autofocus>
+<button onclick="send()">Send</button>
+
+<script>
+    // Підключаємось до WebSocket endpoint (Слайд 5)
+    const ws = new WebSocket("ws://" + location.host + "/ws/chat");
+    const log = document.getElementById("log");
+
+    ws.onopen = () => append("[connected]");
+    ws.onmessage = e => append(e.data);
+    ws.onclose = () => append("[disconnected]");
+
+    function append(text) {
+        const line = document.createElement("div");
+        line.textContent = text;
+        log.appendChild(line);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function send() {
+        const input = document.getElementById("msg");
+        if (input.value) {
+            ws.send(input.value);
+            input.value = "";
+        }
+    }
+
+    document.getElementById("msg").addEventListener("keypress", e => {
+        if (e.key === "Enter") send();
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+### === Слайд 7 — Аутентифікація ===
+
+@baseUrl = http://localhost:8080
+
+### 1. Логін → отримати JWT
+### Скопіюй "token" з відповіді в інші .http файли як @jwt
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin"
+}
+
+### 2. Невалідний логін → 401
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "wrong"
+}
+
+### 3. Слайд 7 — Запит без токена → 401/403 (Слайд 10)
+GET {{baseUrl}}/api/v1/books
+
+### 4. Слайд 7 — API Key замість JWT (Partner API, Слайд 3)
+### Спрацює тільки для /api/partner/** — інші endpoints прив'язані до JWT.
+GET {{baseUrl}}/api/v1/books
+X-API-Key: demo-api-key-12345

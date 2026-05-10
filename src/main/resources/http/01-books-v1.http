@@ -1,0 +1,57 @@
+### === Слайди 4, 6, 8 — Books REST API v1 ===
+### Усі захищені endpoints вимагають JWT — спочатку виконай 03-auth.http
+
+@baseUrl = http://localhost:8080
+@jwt = PASTE_JWT_HERE
+
+### GET список (Слайд 6: GET, кешування через Cache-Control, Deprecation header)
+GET {{baseUrl}}/api/v1/books
+Authorization: Bearer {{jwt}}
+
+### GET одна книга
+GET {{baseUrl}}/api/v1/books/1
+Authorization: Bearer {{jwt}}
+
+### POST створити (Слайд 6: 201 Created + Location header)
+POST {{baseUrl}}/api/v1/books
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "title": "Spring in Action",
+  "author": "Craig Walls",
+  "isbn": "9781617297571",
+  "priceUah": 1100
+}
+
+### PUT оновити (повне оновлення)
+PUT {{baseUrl}}/api/v1/books/1
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "title": "Kotlin in Action (2nd ed.)",
+  "author": "Dmitry Jemerov",
+  "isbn": "9781617293290",
+  "priceUah": 950
+}
+
+### DELETE видалити (Слайд 10: 204 No Content)
+DELETE {{baseUrl}}/api/v1/books/3
+Authorization: Bearer {{jwt}}
+
+### Слайд 10 — Валідаційна помилка (400 + структуроване тіло)
+POST {{baseUrl}}/api/v1/books
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "title": "",
+  "author": "Test",
+  "isbn": "bad",
+  "priceUah": -10
+}
+
+### Слайд 10 — 404 Not Found
+GET {{baseUrl}}/api/v1/books/9999
+Authorization: Bearer {{jwt}}
